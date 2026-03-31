@@ -1,0 +1,107 @@
+{
+  "id": "browser-queue",
+  "name": "Browser Queue",
+  "description": "Manages browser access across all sessions with task-level locking queue",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "defaultProfile": {
+        "type": "string",
+        "description": "Default browser profile to enforce"
+      },
+      "defaultTarget": {
+        "type": "string",
+        "enum": ["host", "sandbox", "node"],
+        "description": "Default browser target"
+      },
+      "inactivityTimeoutMs": {
+        "type": "number",
+        "description": "How long without browser activity before checking if session is still active (default: 300000 - 5 min)"
+      },
+      "inactivityCheckIntervalMs": {
+        "type": "number",
+        "description": "How often to check for inactivity (default: 30000 - 30s)"
+      },
+      "mainSessionPriority": {
+        "type": "boolean",
+        "description": "Whether main session gets priority in queue (default: true)"
+      },
+      "autoRelease": {
+        "type": "boolean",
+        "description": "Auto-release lock after inactivity (default: true)"
+      },
+      "autoReleaseAfterMs": {
+        "type": "number",
+        "description": "Auto-release after this many ms of no browser calls (default: 60000 - 60s)"
+      },
+      "enforcedProfile": {
+        "type": "boolean",
+        "description": "Whether to enforce the default profile on all browser calls (default: true)"
+      },
+      "enforcedTarget": {
+        "type": "boolean",
+        "description": "Whether to enforce the default target on all browser calls (default: true)"
+      },
+      "allowedProfiles": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of allowed browser profiles (empty = all allowed)"
+      },
+      "blockedProfiles": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Profiles that are blocked unless explicitly overridden"
+      },
+      "blockedTargets": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Targets that are blocked unless explicitly overridden"
+      }
+    }
+  },
+  "uiHints": {
+    "defaultProfile": {
+      "label": "Default Profile",
+      "placeholder": "nymeria"
+    },
+    "defaultTarget": {
+      "label": "Default Target",
+      "placeholder": "host"
+    },
+    "inactivityTimeoutMs": {
+      "label": "Inactivity Timeout (ms)",
+      "placeholder": "300000"
+    },
+    "inactivityCheckIntervalMs": {
+      "label": "Inactivity Check Interval (ms)",
+      "placeholder": "30000"
+    },
+    "mainSessionPriority": {
+      "label": "Main Session Priority"
+    },
+    "autoRelease": {
+      "label": "Auto Release"
+    },
+    "autoReleaseAfterMs": {
+      "label": "Auto Release After (ms)",
+      "placeholder": "60000"
+    },
+    "enforcedProfile": {
+      "label": "Enforce Profile"
+    },
+    "enforcedTarget": {
+      "label": "Enforce Target"
+    },
+    "allowedProfiles": {
+      "label": "Allowed Profiles"
+    },
+    "blockedProfiles": {
+      "label": "Blocked Profiles"
+    },
+    "blockedTargets": {
+      "label": "Blocked Targets"
+    }
+  }
+}

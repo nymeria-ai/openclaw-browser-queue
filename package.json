@@ -1,0 +1,31 @@
+{
+  "name": "@openclaw/browser-queue",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin that manages browser access across all sessions with task-level locking queue",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "openclaw": {
+    "extensions": ["./dist/index.js"]
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "browser",
+    "queue",
+    "lock",
+    "concurrency"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
