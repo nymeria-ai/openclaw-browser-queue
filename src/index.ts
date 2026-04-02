@@ -32,6 +32,7 @@ export function register(api: PluginAPI) {
     allowedProfiles: config.allowedProfiles || [],
     blockedProfiles: config.blockedProfiles || [],
     blockedTargets: config.blockedTargets || [],
+    interceptExecPatterns: config.interceptExecPatterns || [],
   };
 
   // Initialize queue with config
@@ -204,35 +205,54 @@ export function register(api: PluginAPI) {
   // Hook into browser tool calls (if api.registerHook is available)
   // This intercepts browser calls to enforce queue and profile/target policies
   if (api.registerHook) {
+    // Pre-compile exec interception patterns for performance
+    const execPatterns: RegExp[] = (finalConfig.interceptExecPatterns || []).map(
+      (pattern) => new RegExp(pattern, 'i')
+    );
+
     api.registerHook(
       'tool:before',
       async (toolName: string, params: any, context?: ToolContext) => {
-        // Only intercept browser tool
-        if (toolName !== 'browser') {
-          return { params }; // Pass through
+        // Determine if this call needs queue management
+        const isBrowserTool = toolName === 'browser';
+        const isExecBrowserCall =
+          toolName === 'exec' &&
+          execPatterns.length > 0 &&
+          typeof params.command === 'string' &&
+          execPatterns.some((pattern) => pattern.test(params.command));
+
+        if (!isBrowserTool && !isExecBrowserCall) {
+          return { params }; // Pass through — not browser-related
         }
 
         const sessionId = context?.sessionId || 'unknown';
         const sessionName = context?.sessionName || 'Unknown Session';
-        // Use session type from context if available, fall back to name heuristic
-        const isMainSession = (context as any)?.sessionType === 'main' ||
-          sessionId.includes('main') || 
+        const isMainSession =
+          (context as any)?.sessionType === 'main' ||
+          sessionId.includes('main') ||
           sessionName.toLowerCase().includes('main');
 
-        api.logger.debug(`[browser-queue] Browser call from ${sessionName} (${sessionId})`);
-
-        // Layer 1: Profile/Target Enforcement
-        try {
-          const enforcedParams = enforcer!.enforce(params as BrowserToolParams);
-          params = enforcedParams;
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          api.logger.warn(`[browser-queue] Blocked browser call: ${errorMsg}`);
-          throw new Error(errorMsg);
+        if (isExecBrowserCall) {
+          api.logger.info(
+            `[browser-queue] Exec call intercepted as browser automation from ${sessionName} (${sessionId}): ${(params.command as string).substring(0, 80)}...`
+          );
+        } else {
+          api.logger.debug(`[browser-queue] Browser call from ${sessionName} (${sessionId})`);
         }
 
-        // Layer 2: Queue Management
-        // acquire() returns immediately — true if lock acquired, false if queued
+        // Layer 1: Profile/Target Enforcement (browser tool only — not applicable to exec)
+        if (isBrowserTool) {
+          try {
+            const enforcedParams = enforcer!.enforce(params as BrowserToolParams);
+            params = enforcedParams;
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            api.logger.warn(`[browser-queue] Blocked browser call: ${errorMsg}`);
+            throw new Error(errorMsg);
+          }
+        }
+
+        // Layer 2: Queue Management (both browser and exec browser calls)
         const acquired = browserQueue.acquire(sessionId, sessionName, isMainSession);
 
         if (!acquired) {

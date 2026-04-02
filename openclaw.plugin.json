@@ -58,6 +58,11 @@
         "type": "array",
         "items": { "type": "string" },
         "description": "Targets that are blocked unless explicitly overridden"
+      },
+      "interceptExecPatterns": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Regex patterns to match exec commands that are browser automation (e.g. osascript.*Google.Chrome). Matched exec calls go through the queue. Empty = off (default)."
       }
     }
   },
@@ -102,6 +107,10 @@
     },
     "blockedTargets": {
       "label": "Blocked Targets"
+    },
+    "interceptExecPatterns": {
+      "label": "Intercept Exec Patterns",
+      "placeholder": "osascript.*Google.Chrome"
     }
   }
 }
