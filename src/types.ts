@@ -15,6 +15,7 @@ export interface PluginConfig {
   allowedProfiles?: string[];
   blockedProfiles?: string[];
   blockedTargets?: string[];
+  interceptExecPatterns?: string[];
 }
 
 export interface BrowserToolParams {
