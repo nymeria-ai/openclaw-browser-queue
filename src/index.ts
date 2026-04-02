@@ -131,6 +131,68 @@ export function register(api: PluginAPI) {
     },
   });
 
+  // Register browser_queue_acquire tool
+  // Allows sessions using non-browser-tool automation (e.g. osascript, exec-based
+  // Chrome control) to participate in the queue alongside browser tool calls.
+  api.registerTool({
+    name: 'browser_queue_acquire',
+    description:
+      'Explicitly acquire the browser lock before non-browser-tool automation ' +
+      '(e.g. osascript, exec-based Chrome control). Returns success if lock ' +
+      'acquired, or queue position if busy. Call browser_queue_release when done.',
+    parameters: {
+      type: 'object',
+      properties: {
+        taskDescription: {
+          type: 'string',
+          description: 'Brief description of what you need the browser for',
+        },
+      },
+      additionalProperties: false,
+    },
+    async execute(_id: string, params: any, context?: ToolContext) {
+      const sessionId = context?.sessionId || 'unknown';
+      const sessionName = context?.sessionName || 'Unknown Session';
+      const isMainSession =
+        (context as any)?.sessionType === 'main' ||
+        sessionId.includes('main') ||
+        sessionName.toLowerCase().includes('main');
+
+      const acquired = browserQueue.acquire(sessionId, sessionName, isMainSession);
+
+      if (!acquired) {
+        const position = browserQueue.getQueuePosition(sessionId);
+        const holder = browserQueue.getLockHolder();
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                `🔒 Browser busy. Holder: ${holder?.sessionName || 'unknown'}. ` +
+                `You are #${position} in queue. Retry shortly.`,
+            },
+          ],
+        };
+      }
+
+      browserQueue.updateActivity(sessionId);
+      const taskNote = params.taskDescription ? `\nTask: ${params.taskDescription}` : '';
+      api.logger.info(
+        `[browser-queue] Lock acquired explicitly by ${sessionName} (${sessionId})` +
+          (params.taskDescription ? ` — ${params.taskDescription}` : '')
+      );
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ Browser lock acquired. Do your work, then call browser_queue_release when done.${taskNote}`,
+          },
+        ],
+      };
+    },
+  });
+
   // Start watchdog service
   const watchdog = createWatchdog(finalConfig, api.logger);
   api.registerService({
