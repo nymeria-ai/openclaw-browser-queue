@@ -37,14 +37,8 @@ class BrowserQueue {
       return true;
     }
 
-    // If same session holds the lock, just update activity and continue
-    if (this.lock.sessionId === sessionId) {
-      this.lock.lastActivity = Date.now();
-      return true;
-    }
-
-    // If this session was queued and is now being promoted (lock just freed for them),
-    // check if they're the next in line and the lock was assigned to them by processQueue
+    // If same session holds the lock (including promoted-from-queue sessions
+    // that were assigned the lock by processQueue), update activity and continue
     if (this.lock.sessionId === sessionId) {
       this.lock.lastActivity = Date.now();
       return true;
