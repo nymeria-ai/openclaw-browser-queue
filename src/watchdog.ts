@@ -1,6 +1,6 @@
 /**
  * Watchdog monitor for browser lock inactivity
- * Automatically releases stale locks
+ * Automatically releases stale locks and cleans zombie queue entries
  */
 
 import type { PluginConfig, PluginAPI } from './types';
@@ -23,6 +23,7 @@ export class BrowserWatchdog {
 
     this.intervalHandle = setInterval(() => {
       this.checkInactivity();
+      this.cleanZombieQueueEntries();
     }, checkIntervalMs);
   }
 
@@ -41,26 +42,50 @@ export class BrowserWatchdog {
     }
 
     const inactivityMs = browserQueue.getInactivityMs();
-    const inactivityTimeoutMs = this.config.inactivityTimeoutMs || 300000;
     const autoReleaseAfterMs = this.config.autoReleaseAfterMs || 60000;
 
-    // Check if we should auto-release
+    // Log a warning at 75% of auto-release threshold
+    const warningThresholdMs = Math.floor(autoReleaseAfterMs * 0.75);
+    if (inactivityMs >= warningThresholdMs && inactivityMs < autoReleaseAfterMs) {
+      this.logger.warn(
+        `[browser-queue] Lock holder approaching auto-release threshold ` +
+        `(${Math.floor(inactivityMs / 1000)}s / ${Math.floor(autoReleaseAfterMs / 1000)}s). ` +
+        `Holder: ${holder.sessionName} (${holder.sessionId})`
+      );
+    }
+
+    // Auto-release if enabled and threshold exceeded
     if (this.config.autoRelease !== false && inactivityMs >= autoReleaseAfterMs) {
       this.logger.warn(
-        `[browser-queue] Auto-releasing lock due to inactivity (${inactivityMs}ms). ` +
+        `[browser-queue] Auto-releasing lock due to inactivity (${Math.floor(inactivityMs / 1000)}s). ` +
         `Holder: ${holder.sessionName} (${holder.sessionId})`
       );
       browserQueue.forceRelease();
-      return;
     }
+  }
 
-    // Check if inactivity exceeds warning threshold
-    if (inactivityMs >= inactivityTimeoutMs) {
-      this.logger.warn(
-        `[browser-queue] Lock holder inactive for ${inactivityMs}ms. ` +
-        `Holder: ${holder.sessionName} (${holder.sessionId}). ` +
-        `Will auto-release at ${autoReleaseAfterMs}ms if auto-release is enabled.`
-      );
+  /**
+   * Clean up queue entries for sessions that have been waiting too long
+   * without making any browser calls. These are likely dead/crashed sessions.
+   */
+  private cleanZombieQueueEntries(): void {
+    const maxQueueWaitMs = this.config.inactivityTimeoutMs || 300000;
+    const queuedIds = browserQueue.getQueuedSessionIds();
+    const now = Date.now();
+
+    for (const sessionId of queuedIds) {
+      const status = browserQueue.getStatus();
+      const entry = status.queue.find((q) => q.sessionId === sessionId);
+      if (!entry) continue;
+
+      const waitingMs = now - entry.waitingSince;
+      if (waitingMs >= maxQueueWaitMs) {
+        this.logger.warn(
+          `[browser-queue] Removing zombie queue entry: ${entry.sessionName} ` +
+          `(${sessionId}), waiting for ${Math.floor(waitingMs / 1000)}s`
+        );
+        browserQueue.removeFromQueue(sessionId);
+      }
     }
   }
 }

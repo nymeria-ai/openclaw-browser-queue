@@ -152,7 +152,10 @@ export function register(api: PluginAPI) {
 
         const sessionId = context?.sessionId || 'unknown';
         const sessionName = context?.sessionName || 'Unknown Session';
-        const isMainSession = sessionId.includes('main') || sessionName.toLowerCase().includes('main');
+        // Use session type from context if available, fall back to name heuristic
+        const isMainSession = (context as any)?.sessionType === 'main' ||
+          sessionId.includes('main') || 
+          sessionName.toLowerCase().includes('main');
 
         api.logger.debug(`[browser-queue] Browser call from ${sessionName} (${sessionId})`);
 
@@ -167,19 +170,18 @@ export function register(api: PluginAPI) {
         }
 
         // Layer 2: Queue Management
-        const acquired = await browserQueue.acquire(sessionId, sessionName, isMainSession);
+        // acquire() returns immediately — true if lock acquired, false if queued
+        const acquired = browserQueue.acquire(sessionId, sessionName, isMainSession);
 
         if (!acquired) {
-          // This session is now queued - the promise will resolve when it's their turn
           const position = browserQueue.getQueuePosition(sessionId);
           const holder = browserQueue.getLockHolder();
           const queueMsg =
-            `🔒 Browser is busy. Current task: ${holder?.sessionName || 'unknown'}. ` +
-            `You are #${position} in queue. Your request will execute when the browser is free.`;
+            `🔒 Browser is busy. Current holder: ${holder?.sessionName || 'unknown'}. ` +
+            `You are #${position} in queue. Retry your browser action shortly — ` +
+            `the lock will be assigned to you when the current holder finishes.`;
 
           api.logger.info(`[browser-queue] ${sessionName} queued at position ${position}`);
-          
-          // Return a special response that indicates queuing
           throw new Error(queueMsg);
         }
 

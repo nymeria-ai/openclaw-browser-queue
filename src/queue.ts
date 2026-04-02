@@ -9,7 +9,6 @@ interface QueueItem {
   sessionId: string;
   sessionName: string;
   waitingSince: number;
-  resolve: () => void;
 }
 
 class BrowserQueue {
@@ -22,10 +21,11 @@ class BrowserQueue {
   }
 
   /**
-   * Try to acquire the browser lock
-   * Returns true if acquired immediately, false if queued
+   * Try to acquire the browser lock.
+   * Returns true if acquired immediately, false if queued.
+   * Does NOT block — queued sessions get false and should retry on next browser call.
    */
-  async acquire(sessionId: string, sessionName: string, isMainSession: boolean): Promise<boolean> {
+  acquire(sessionId: string, sessionName: string, isMainSession: boolean): boolean {
     // If lock is not held, acquire immediately
     if (!this.lock) {
       this.lock = {
@@ -43,22 +43,40 @@ class BrowserQueue {
       return true;
     }
 
-    // Lock held by different session - queue this request
-    return new Promise((resolve) => {
-      const queueItem: QueueItem = {
-        sessionId,
-        sessionName,
-        waitingSince: Date.now(),
-        resolve: () => resolve(true),
-      };
+    // If this session was queued and is now being promoted (lock just freed for them),
+    // check if they're the next in line and the lock was assigned to them by processQueue
+    if (this.lock.sessionId === sessionId) {
+      this.lock.lastActivity = Date.now();
+      return true;
+    }
 
-      // Main session gets priority (inserted at position 0)
-      if (isMainSession && this.config.mainSessionPriority) {
-        this.queue.unshift(queueItem);
-      } else {
-        this.queue.push(queueItem);
-      }
-    });
+    // Already in queue? Don't add again — just return false
+    if (this.isQueued(sessionId)) {
+      return false;
+    }
+
+    // Lock held by different session - add to queue and return false immediately
+    const queueItem: QueueItem = {
+      sessionId,
+      sessionName,
+      waitingSince: Date.now(),
+    };
+
+    // Main session gets priority (inserted at position 0)
+    if (isMainSession && this.config.mainSessionPriority) {
+      this.queue.unshift(queueItem);
+    } else {
+      this.queue.push(queueItem);
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a session is already in the queue
+   */
+  isQueued(sessionId: string): boolean {
+    return this.queue.some((item) => item.sessionId === sessionId);
   }
 
   /**
@@ -102,7 +120,24 @@ class BrowserQueue {
   }
 
   /**
-   * Process the queue and notify the next waiting session
+   * Remove a session from the queue (for zombie cleanup)
+   */
+  removeFromQueue(sessionId: string): boolean {
+    const index = this.queue.findIndex((item) => item.sessionId === sessionId);
+    if (index === -1) return false;
+    this.queue.splice(index, 1);
+    return true;
+  }
+
+  /**
+   * Get all queued session IDs (for watchdog to check liveness)
+   */
+  getQueuedSessionIds(): string[] {
+    return this.queue.map((item) => item.sessionId);
+  }
+
+  /**
+   * Process the queue and promote the next waiting session to lock holder
    */
   private processQueue(): void {
     if (this.queue.length === 0) {
@@ -114,16 +149,15 @@ class BrowserQueue {
       return;
     }
 
-    // Acquire lock for the next session
+    // Acquire lock for the next session.
+    // The next time this session makes a browser call, acquire() will see
+    // it already holds the lock and return true.
     this.lock = {
       sessionId: next.sessionId,
       sessionName: next.sessionName,
       acquiredAt: Date.now(),
       lastActivity: Date.now(),
     };
-
-    // Notify the waiting session
-    next.resolve();
   }
 
   /**
