@@ -64,7 +64,7 @@
   "uiHints": {
     "defaultProfile": {
       "label": "Default Profile",
-      "placeholder": "nymeria"
+      "placeholder": "default"
     },
     "defaultTarget": {
       "label": "Default Target",

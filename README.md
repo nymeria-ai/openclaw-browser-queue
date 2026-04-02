@@ -42,7 +42,7 @@ Add to your OpenClaw config (`~/.openclaw/config.json` or via Control UI):
       "browser-queue": {
         "enabled": true,
         "config": {
-          "defaultProfile": "nymeria",
+          "defaultProfile": "default",
           "defaultTarget": "host",
           "inactivityTimeoutMs": 300000,
           "inactivityCheckIntervalMs": 30000,
@@ -51,7 +51,7 @@ Add to your OpenClaw config (`~/.openclaw/config.json` or via Control UI):
           "autoReleaseAfterMs": 60000,
           "enforcedProfile": true,
           "enforcedTarget": true,
-          "allowedProfiles": ["nymeria"],
+          "allowedProfiles": ["default"],
           "blockedProfiles": ["openclaw"],
           "blockedTargets": ["sandbox"]
         }
@@ -65,7 +65,7 @@ Add to your OpenClaw config (`~/.openclaw/config.json` or via Control UI):
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `defaultProfile` | string | `"nymeria"` | Default browser profile to enforce |
+| `defaultProfile` | string | `"default"` | Default browser profile to enforce |
 | `defaultTarget` | string | `"host"` | Default browser target (`host`, `sandbox`, or `node`) |
 | `inactivityTimeoutMs` | number | `300000` | How long without browser activity before checking if session is still active (5 min) |
 | `inactivityCheckIntervalMs` | number | `30000` | How often to check for inactivity (30s) |

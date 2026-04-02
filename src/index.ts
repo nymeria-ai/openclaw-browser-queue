@@ -20,7 +20,7 @@ export function register(api: PluginAPI) {
 
   // Apply defaults
   const finalConfig: PluginConfig = {
-    defaultProfile: config.defaultProfile || 'nymeria',
+    defaultProfile: config.defaultProfile || 'default',
     defaultTarget: config.defaultTarget || 'host',
     inactivityTimeoutMs: config.inactivityTimeoutMs || 300000,
     inactivityCheckIntervalMs: config.inactivityCheckIntervalMs || 30000,
